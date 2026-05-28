@@ -647,7 +647,7 @@ IconData _getIconForType(BthomeSensorType type) {
     case BthomeSensorType.powerBinary:
       return Icons.power;
     case BthomeSensorType.voltage:
-    case BthomeSensorType.voltageUint8:
+    case BthomeSensorType.voltage01:
       return Icons.bolt;
     case BthomeSensorType.current:
     case BthomeSensorType.currentSint16:
@@ -730,7 +730,7 @@ class _DeviceDetailsScreenState extends State<DeviceDetailsScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            ..._device.measurements.map((m) => _MeasurementTile(measurement: m)),
+            ..._device.orderedMeasurements.map((m) => _MeasurementTile(measurement: m)),
           ],
         ],
       ),
@@ -776,6 +776,8 @@ class _DeviceDetailsScreenState extends State<DeviceDetailsScreen> {
             const SizedBox(height: 16),
             const Divider(),
             const SizedBox(height: 12),
+            _RawDataRow(hex: _device.advertisementHex),
+            const SizedBox(height: 8),
             _InfoRow(
               icon: Icons.signal_cellular_alt,
               label: 'Signal Strength',
@@ -914,11 +916,27 @@ class _MeasurementTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    measurement.type.name,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.outline,
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        measurement.type.name,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.outline,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _MetaBadge(
+                        label: '#${measurement.orderIndex}',
+                        tooltip: 'Position within the last packet',
+                      ),
+                      if (measurement.packetId != null) ...[
+                        const SizedBox(width: 4),
+                        _MetaBadge(
+                          label: 'pkt ${measurement.packetId}',
+                          tooltip: 'Packet ID of the last packet containing it',
+                        ),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -933,6 +951,92 @@ class _MeasurementTile extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _MetaBadge extends StatelessWidget {
+  final String label;
+  final String tooltip;
+
+  const _MetaBadge({required this.label, required this.tooltip});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Tooltip(
+      message: tooltip,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(
+          label,
+          style: theme.textTheme.labelSmall?.copyWith(
+            fontFamily: 'monospace',
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RawDataRow extends StatelessWidget {
+  final String hex;
+
+  const _RawDataRow({required this.hex});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.data_object,
+              size: 18,
+              color: theme.colorScheme.outline,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Raw',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              '${hex.length ~/ 2} bytes',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: SelectableText(
+            hex,
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontFamily: 'monospace',
+              fontFeatures: const [FontFeature.tabularFigures()],
+              height: 1.4,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

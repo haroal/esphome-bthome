@@ -28,37 +28,37 @@ enum BthomeSensorType {
   voltage(0x0C, 'Voltage', 'V', 2, false, 0.001),
   pm25(0x0D, 'PM2.5', 'µg/m³', 2, false, 1.0),
   pm10(0x0E, 'PM10', 'µg/m³', 2, false, 1.0),
-  genericBoolean(0x0F, 'Generic', '', 1, false, 1.0),
-  powerBinary(0x10, 'Power', '', 1, false, 1.0),
-  opening(0x11, 'Opening', '', 1, false, 1.0),
+  genericBoolean(0x0F, 'Generic', '', 1, false, 1.0, isBinary: true),
+  powerBinary(0x10, 'Power', '', 1, false, 1.0, isBinary: true),
+  opening(0x11, 'Opening', '', 1, false, 1.0, isBinary: true),
   co2(0x12, 'CO2', 'ppm', 2, false, 1.0),
   tvoc(0x13, 'TVOC', 'µg/m³', 2, false, 1.0),
   moisture(0x14, 'Moisture', '%', 2, false, 0.01),
-  batteryLow(0x15, 'Battery Low', '', 1, false, 1.0),
-  batteryCharging(0x16, 'Charging', '', 1, false, 1.0),
-  co(0x17, 'CO', '', 1, false, 1.0),
-  cold(0x18, 'Cold', '', 1, false, 1.0),
-  connectivity(0x19, 'Connectivity', '', 1, false, 1.0),
-  door(0x1A, 'Door', '', 1, false, 1.0),
-  garageDoor(0x1B, 'Garage Door', '', 1, false, 1.0),
-  gas(0x1C, 'Gas', '', 1, false, 1.0),
-  heat(0x1D, 'Heat', '', 1, false, 1.0),
-  light(0x1E, 'Light', '', 1, false, 1.0),
-  lock(0x1F, 'Lock', '', 1, false, 1.0),
-  moistureBinary(0x20, 'Moisture', '', 1, false, 1.0),
-  motion(0x21, 'Motion', '', 1, false, 1.0),
-  moving(0x22, 'Moving', '', 1, false, 1.0),
-  occupancy(0x23, 'Occupancy', '', 1, false, 1.0),
-  plug(0x24, 'Plug', '', 1, false, 1.0),
-  presence(0x25, 'Presence', '', 1, false, 1.0),
-  problem(0x26, 'Problem', '', 1, false, 1.0),
-  running(0x27, 'Running', '', 1, false, 1.0),
-  safety(0x28, 'Safety', '', 1, false, 1.0),
-  smoke(0x29, 'Smoke', '', 1, false, 1.0),
-  sound(0x2A, 'Sound', '', 1, false, 1.0),
-  tamper(0x2B, 'Tamper', '', 1, false, 1.0),
-  vibration(0x2C, 'Vibration', '', 1, false, 1.0),
-  windowBinary(0x2D, 'Window', '', 1, false, 1.0),
+  batteryLow(0x15, 'Battery Low', '', 1, false, 1.0, isBinary: true),
+  batteryCharging(0x16, 'Charging', '', 1, false, 1.0, isBinary: true),
+  co(0x17, 'CO', '', 1, false, 1.0, isBinary: true),
+  cold(0x18, 'Cold', '', 1, false, 1.0, isBinary: true),
+  connectivity(0x19, 'Connectivity', '', 1, false, 1.0, isBinary: true),
+  door(0x1A, 'Door', '', 1, false, 1.0, isBinary: true),
+  garageDoor(0x1B, 'Garage Door', '', 1, false, 1.0, isBinary: true),
+  gas(0x1C, 'Gas', '', 1, false, 1.0, isBinary: true),
+  heat(0x1D, 'Heat', '', 1, false, 1.0, isBinary: true),
+  light(0x1E, 'Light', '', 1, false, 1.0, isBinary: true),
+  lock(0x1F, 'Lock', '', 1, false, 1.0, isBinary: true),
+  moistureBinary(0x20, 'Moisture', '', 1, false, 1.0, isBinary: true),
+  motion(0x21, 'Motion', '', 1, false, 1.0, isBinary: true),
+  moving(0x22, 'Moving', '', 1, false, 1.0, isBinary: true),
+  occupancy(0x23, 'Occupancy', '', 1, false, 1.0, isBinary: true),
+  plug(0x24, 'Plug', '', 1, false, 1.0, isBinary: true),
+  presence(0x25, 'Presence', '', 1, false, 1.0, isBinary: true),
+  problem(0x26, 'Problem', '', 1, false, 1.0, isBinary: true),
+  running(0x27, 'Running', '', 1, false, 1.0, isBinary: true),
+  safety(0x28, 'Safety', '', 1, false, 1.0, isBinary: true),
+  smoke(0x29, 'Smoke', '', 1, false, 1.0, isBinary: true),
+  sound(0x2A, 'Sound', '', 1, false, 1.0, isBinary: true),
+  tamper(0x2B, 'Tamper', '', 1, false, 1.0, isBinary: true),
+  vibration(0x2C, 'Vibration', '', 1, false, 1.0, isBinary: true),
+  windowBinary(0x2D, 'Window', '', 1, false, 1.0, isBinary: true),
   humidityUint8(0x2E, 'Humidity', '%', 1, false, 1.0),
   moistureUint8(0x2F, 'Moisture', '%', 1, false, 1.0),
   countUint16(0x3D, 'Count', '', 2, false, 1.0),
@@ -74,7 +74,7 @@ enum BthomeSensorType {
   volumeLiter(0x47, 'Volume', 'L', 2, false, 0.1),
   volumeMl(0x48, 'Volume', 'mL', 2, false, 1.0),
   volumeFlowRate(0x49, 'Flow Rate', 'm³/hr', 2, false, 0.001),
-  voltageUint8(0x4A, 'Voltage', 'V', 1, false, 0.1),
+  voltage01(0x4A, 'Voltage', 'V', 2, false, 0.1),
   gas2(0x4B, 'Gas', '', 3, false, 0.001),
   gas3(0x4C, 'Gas', '', 4, false, 0.001),
   energyUint32(0x4D, 'Energy', 'kWh', 4, false, 0.001),
@@ -94,8 +94,10 @@ enum BthomeSensorType {
   countSint32(0x5B, 'Count', '', 4, true, 1.0),
   powerSint32(0x5C, 'Power', 'W', 4, true, 0.01),
   currentSint16(0x5D, 'Current', 'A', 2, true, 0.001),
-  energySint32(0x5E, 'Energy', 'kWh', 4, true, 0.001),
-  precipitation(0x5F, 'Precipitation', 'mm', 2, false, 0.01),
+  direction(0x5E, 'Direction', '°', 2, false, 0.01),
+  precipitation(0x5F, 'Precipitation', 'mm', 2, false, 0.1),
+  channel(0x60, 'Channel', '', 1, false, 1.0),
+  rotationalSpeed(0x61, 'Rotational Speed', 'rpm', 2, false, 1.0),
   button(0x3A, 'Button', '', 1, false, 1.0),
   dimmer(0x3C, 'Dimmer', '', 2, false, 1.0);
 
@@ -105,6 +107,7 @@ enum BthomeSensorType {
   final int dataBytes;
   final bool isSigned;
   final double factor;
+  final bool isBinary;
 
   const BthomeSensorType(
     this.objectId,
@@ -112,8 +115,9 @@ enum BthomeSensorType {
     this.unit,
     this.dataBytes,
     this.isSigned,
-    this.factor,
-  );
+    this.factor, {
+    this.isBinary = false,
+  });
 
   static BthomeSensorType? fromObjectId(int id) {
     for (final type in BthomeSensorType.values) {
@@ -131,20 +135,30 @@ class BthomeMeasurement {
   final double value;
   final DateTime timestamp;
 
+  /// Position of the measurement within the most recent BTHome packet it
+  /// appeared in. Useful to verify that ordering stays stable across packets.
+  final int orderIndex;
+
+  /// Packet ID (object 0x00) of the most recent BTHome packet this measurement
+  /// arrived in. Null if the packet did not contain a packet_id field.
+  final int? packetId;
+
   BthomeMeasurement({
     required this.type,
     required this.value,
+    this.orderIndex = 0,
+    this.packetId,
     DateTime? timestamp,
   }) : timestamp = timestamp ?? DateTime.now();
 
   String get displayValue {
-    if (type.unit.isEmpty) {
-      if (type.dataBytes == 1 && !type.isSigned) {
-        return value == 1.0 ? 'On' : 'Off';
-      }
-      return value.toStringAsFixed(value.truncateToDouble() == value ? 0 : 2);
+    if (type.isBinary) {
+      return value == 1.0 ? 'On' : 'Off';
     }
-    return '${value.toStringAsFixed(value.truncateToDouble() == value ? 0 : 2)} ${type.unit}';
+    final formatted = value.toStringAsFixed(
+      value.truncateToDouble() == value ? 0 : 2,
+    );
+    return type.unit.isEmpty ? formatted : '$formatted ${type.unit}';
   }
 }
 
@@ -185,11 +199,16 @@ class BthomeDevice {
   String? get appearanceName {
     if (appearance == null) return null;
     switch (appearance) {
-      case 0x0540: return 'Sensor';
-      case 0x0541: return 'Motion Sensor';
-      case 0x0542: return 'Contact Sensor';
-      case 0x0300: return 'Thermometer';
-      default: return 'Device (0x${appearance!.toRadixString(16)})';
+      case 0x0540:
+        return 'Sensor';
+      case 0x0541:
+        return 'Motion Sensor';
+      case 0x0542:
+        return 'Contact Sensor';
+      case 0x0300:
+        return 'Thermometer';
+      default:
+        return 'Device (0x${appearance!.toRadixString(16)})';
     }
   }
 
@@ -199,8 +218,7 @@ class BthomeDevice {
   double? get estimatedDistance {
     if (txPowerLevel == null) return null;
     const pathLossExponent = 2.5; // Indoor environment
-    final distance =
-        _pow(10, (txPowerLevel! - rssi) / (10 * pathLossExponent));
+    final distance = _pow(10, (txPowerLevel! - rssi) / (10 * pathLossExponent));
     return distance;
   }
 
@@ -242,7 +260,17 @@ class BthomeDevice {
     if (rawServiceData == null || rawServiceData!.isEmpty) {
       return macAddress;
     }
-    return rawServiceData!.map((b) => b.toRadixString(16).padLeft(2, '0')).join('');
+    return rawServiceData!
+        .map((b) => b.toRadixString(16).padLeft(2, '0'))
+        .join('');
+  }
+
+  List<BthomeMeasurement> get orderedMeasurements {
+    return measurements..sort(
+      (a, b) =>
+          ((a.packetId ?? 0) * 1000 + a.orderIndex) -
+          ((b.packetId ?? 0) * 1000 + b.orderIndex),
+    );
   }
 
   BthomeDevice copyWith({
@@ -399,7 +427,10 @@ class BthomeParser {
     final counterBytes = serviceData.sublist(serviceData.length - 4);
 
     // Extract MIC (4 bytes before counter)
-    final mic = serviceData.sublist(serviceData.length - 8, serviceData.length - 4);
+    final mic = serviceData.sublist(
+      serviceData.length - 8,
+      serviceData.length - 4,
+    );
 
     // Extract ciphertext (between device_info and mic)
     final ciphertext = serviceData.sublist(1, serviceData.length - 8);
@@ -431,10 +462,20 @@ class BthomeParser {
       // CCM expects ciphertext + MAC concatenated
       final ciphertextWithMac = Uint8List(ciphertext.length + mic.length);
       ciphertextWithMac.setRange(0, ciphertext.length, ciphertext);
-      ciphertextWithMac.setRange(ciphertext.length, ciphertextWithMac.length, mic);
+      ciphertextWithMac.setRange(
+        ciphertext.length,
+        ciphertextWithMac.length,
+        mic,
+      );
 
       final plaintext = Uint8List(ccm.getOutputSize(ciphertextWithMac.length));
-      final len = ccm.processBytes(ciphertextWithMac, 0, ciphertextWithMac.length, plaintext, 0);
+      final len = ccm.processBytes(
+        ciphertextWithMac,
+        0,
+        ciphertextWithMac.length,
+        plaintext,
+        0,
+      );
       ccm.doFinal(plaintext, len);
 
       return plaintext.sublist(0, ciphertext.length);
@@ -451,7 +492,10 @@ class BthomeParser {
     try {
       final bytes = Uint8List(6);
       for (var i = 0; i < 6; i++) {
-        bytes[5 - i] = int.parse(cleanMac.substring(i * 2, i * 2 + 2), radix: 16);
+        bytes[5 - i] = int.parse(
+          cleanMac.substring(i * 2, i * 2 + 2),
+          radix: 16,
+        );
       }
       return bytes;
     } catch (e) {
@@ -461,8 +505,10 @@ class BthomeParser {
 
   /// Parse measurements from decrypted/unencrypted payload
   static List<BthomeMeasurement> _parseMeasurements(Uint8List data) {
-    final measurements = <BthomeMeasurement>[];
+    // First pass: collect (type, value) pairs in order and locate packet_id.
+    final parsed = <({BthomeSensorType type, double value})>[];
     var offset = 0;
+    int? packetId;
 
     while (offset < data.length) {
       final objectId = data[offset];
@@ -485,10 +531,26 @@ class BthomeParser {
         sensorType.factor,
       );
 
-      measurements.add(BthomeMeasurement(type: sensorType, value: value));
+      if (sensorType == BthomeSensorType.packetId) {
+        packetId = value.toInt();
+      }
+      parsed.add((type: sensorType, value: value));
       offset += sensorType.dataBytes;
     }
 
+    // Second pass: stamp each measurement with its position in this packet
+    // and the packet_id (if any) of the containing packet.
+    final measurements = <BthomeMeasurement>[];
+    for (var i = 0; i < parsed.length; i++) {
+      measurements.add(
+        BthomeMeasurement(
+          type: parsed[i].type,
+          value: parsed[i].value,
+          orderIndex: i,
+          packetId: packetId,
+        ),
+      );
+    }
     return measurements;
   }
 
