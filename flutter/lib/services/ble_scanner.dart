@@ -14,6 +14,23 @@ class BleScanner extends ChangeNotifier {
   StreamSubscription<BluetoothAdapterState>? _adapterSubscription;
   BluetoothAdapterState _adapterState = BluetoothAdapterState.unknown;
 
+  /// When true, incoming scan results are discarded so the displayed device
+  /// data stays frozen on whatever was last received.
+  bool _paused = false;
+
+  /// When true, the scanner automatically transitions to [_paused] as soon as
+  /// it observes a BTHome packet whose packet_id differs from the one already
+  /// stored for that device.
+  bool _autoPause = false;
+
+  /// Chronological log of distinct BTHome packets seen this session. Each
+  /// entry is a fresh parse snapshot (before merging into the live device
+  /// view), so its `measurements` reflect exactly what was in that one
+  /// advertisement. Consecutive identical raw payloads from the same device
+  /// are deduplicated to avoid flooding from retransmissions.
+  final List<BthomeDevice> _history = [];
+  static const int _historyMax = 500;
+
   /// All discovered BTHome devices (sorted by RSSI)
   List<BthomeDevice> get devices {
     final list = _devices.values.toList();
@@ -24,6 +41,87 @@ class BleScanner extends ChangeNotifier {
 
   /// Whether scanning is currently active
   bool get isScanning => _isScanning;
+
+  /// Whether incoming packets are currently being ignored (frozen view).
+  bool get isPaused => _paused;
+
+  /// Whether auto-pause mode is armed.
+  bool get isAutoPause => _autoPause;
+
+  /// Pause processing of incoming packets. The BLE scan keeps running so
+  /// resuming is instantaneous, but no device state is mutated until
+  /// [resume] is called.
+  void pause() {
+    if (_paused) return;
+    _paused = true;
+    notifyListeners();
+  }
+
+  /// Resume processing of incoming packets.
+  void resume() {
+    if (!_paused) return;
+    _paused = false;
+    notifyListeners();
+  }
+
+  void togglePause() => _paused ? resume() : pause();
+
+  /// Toggle auto-pause mode. When armed, the next BTHome packet whose
+  /// packet_id differs from the currently-stored one will pause the scanner
+  /// automatically (and discard that triggering packet so the prior data
+  /// stays visible).
+  void toggleAutoPause() {
+    _autoPause = !_autoPause;
+    notifyListeners();
+  }
+
+  /// Chronological packet log (oldest first).
+  List<BthomeDevice> get history => List.unmodifiable(_history);
+
+  /// Clear the packet history log.
+  void clearHistory() {
+    if (_history.isEmpty) return;
+    _history.clear();
+    notifyListeners();
+  }
+
+  bool _bytesEqual(Uint8List a, Uint8List b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  /// Push a freshly parsed BTHome device snapshot onto the history log,
+  /// dropping retransmissions of the identical payload from the same device.
+  void _addToHistory(BthomeDevice device) {
+    if (device.rawServiceData == null) return;
+    // Look back to the most recent entry for this MAC and skip if identical.
+    for (var i = _history.length - 1; i >= 0; i--) {
+      if (_history[i].macAddress == device.macAddress) {
+        final prev = _history[i].rawServiceData;
+        if (prev != null && _bytesEqual(prev, device.rawServiceData!)) {
+          return;
+        }
+        break;
+      }
+    }
+    _history.add(device);
+    while (_history.length > _historyMax) {
+      _history.removeAt(0);
+    }
+  }
+
+  /// Extract the packet_id measurement value from a device, if present.
+  int? _packetIdOf(BthomeDevice device) {
+    for (final m in device.measurements) {
+      if (m.type == BthomeSensorType.packetId) {
+        return m.value.toInt();
+      }
+    }
+    return null;
+  }
 
   /// Current error message, if any
   String? get error => _error;
@@ -133,6 +231,7 @@ class BleScanner extends ChangeNotifier {
   }
 
   void _handleScanResults(List<ScanResult> results) async {
+    if (_paused) return;
     for (final result in results) {
       final macAddress = result.device.remoteId.str;
       final name = result.advertisementData.advName;
@@ -176,8 +275,28 @@ class BleScanner extends ChangeNotifier {
         );
 
         if (device != null) {
+          // Record this packet to the chronological history before merging
+          // into the live device view, so the log reflects exactly what was
+          // on the wire (single-packet measurements, original order).
+          _addToHistory(device);
+
           // Merge measurements from multiple packets (e.g., weather stations)
           final existing = _devices[macAddress];
+
+          // Auto-pause: if the just-parsed packet has a different packet_id
+          // than the one already stored for this device, we still apply this
+          // packet (so the details page shows what triggered the pause), but
+          // we flip into _paused right after, before any further packets in
+          // this batch get processed.
+          bool autoPauseTriggered = false;
+          if (_autoPause && existing != null) {
+            final oldId = _packetIdOf(existing);
+            final newId = _packetIdOf(device);
+            if (oldId != null && newId != null && oldId != newId) {
+              autoPauseTriggered = true;
+            }
+          }
+
           if (existing != null && device.measurements.isNotEmpty) {
             // Create a map of measurements by type for merging
             final measurementMap = <int, BthomeMeasurement>{};
@@ -203,6 +322,15 @@ class BleScanner extends ChangeNotifier {
             );
           } else {
             _devices[macAddress] = device;
+          }
+
+          // Flip into paused state AFTER the triggering packet has been
+          // merged in, so the live view shows the packet that caused the
+          // freeze. Skip any remaining results in this batch.
+          if (autoPauseTriggered) {
+            _paused = true;
+            notifyListeners();
+            return;
           }
           notifyListeners();
         }

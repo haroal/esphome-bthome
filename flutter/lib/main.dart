@@ -100,7 +100,17 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
           SliverAppBar.large(
             title: const Text('BTHome'),
             actions: [
-              if (_scanner.isScanning)
+              IconButton(
+                tooltip: 'Packet history',
+                icon: const Icon(Icons.history),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => HistoryScreen(scanner: _scanner),
+                  ),
+                ),
+              ),
+              if (_scanner.isScanning && !_scanner.isPaused)
                 Padding(
                   padding: const EdgeInsets.only(right: 16),
                   child: SizedBox(
@@ -117,6 +127,9 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
           _buildBody(),
         ],
       ),
+      floatingActionButton: _permissionsGranted && _scanner.isBluetoothReady
+          ? PauseFab(scanner: _scanner)
+          : null,
     );
   }
 
@@ -734,6 +747,7 @@ class _DeviceDetailsScreenState extends State<DeviceDetailsScreen> {
           ],
         ],
       ),
+      floatingActionButton: PauseFab(scanner: widget.scanner),
     );
   }
 
@@ -1041,3 +1055,441 @@ class _RawDataRow extends StatelessWidget {
   }
 }
 
+/// Floating action button that toggles scanner pause on tap and arms/disarms
+/// auto-pause (pause-on-packet-id-change) on long-press.
+///
+/// Visual states:
+///   - Scanning, no auto-pause: outlined primary FAB with pause icon.
+///   - Paused: filled primary FAB with play icon.
+///   - Auto-pause armed (still scanning): tertiary tint with a small "A" badge.
+///   - Auto-pause triggered (paused by auto-pause): tertiary fill + "A" badge.
+class PauseFab extends StatefulWidget {
+  final BleScanner scanner;
+
+  const PauseFab({super.key, required this.scanner});
+
+  @override
+  State<PauseFab> createState() => _PauseFabState();
+}
+
+class _PauseFabState extends State<PauseFab> {
+  @override
+  void initState() {
+    super.initState();
+    widget.scanner.addListener(_onChange);
+  }
+
+  @override
+  void dispose() {
+    widget.scanner.removeListener(_onChange);
+    super.dispose();
+  }
+
+  void _onChange() {
+    if (mounted) setState(() {});
+  }
+
+  void _handleTap() {
+    widget.scanner.togglePause();
+  }
+
+  void _handleLongPress() {
+    widget.scanner.toggleAutoPause();
+    final on = widget.scanner.isAutoPause;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(on
+            ? 'Auto-pause armed: scanner will freeze on packet_id change'
+            : 'Auto-pause disabled'),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final paused = widget.scanner.isPaused;
+    final auto = widget.scanner.isAutoPause;
+
+    final bgColor = auto
+        ? theme.colorScheme.tertiaryContainer
+        : (paused
+            ? theme.colorScheme.primary
+            : theme.colorScheme.primaryContainer);
+    final fgColor = auto
+        ? theme.colorScheme.onTertiaryContainer
+        : (paused
+            ? theme.colorScheme.onPrimary
+            : theme.colorScheme.onPrimaryContainer);
+
+    final tooltip = paused
+        ? (auto ? 'Auto-paused — tap to resume, long-press to disarm' : 'Tap to resume')
+        : (auto
+            ? 'Auto-pause armed — tap to pause now, long-press to disarm'
+            : 'Tap to pause, long-press for auto-pause');
+
+    // NOTE: Tooltip's default trigger on touch devices is long-press, which
+    // competes with (and wins over) our GestureDetector.onLongPress in the
+    // gesture arena. Switch the Tooltip to manual so long-press is ours; the
+    // message stays accessible via screen readers and the snackbar gives
+    // visible feedback when auto-pause toggles.
+    return GestureDetector(
+      onLongPress: _handleLongPress,
+      child: Tooltip(
+        message: tooltip,
+        triggerMode: TooltipTriggerMode.manual,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            FloatingActionButton(
+              onPressed: _handleTap,
+              backgroundColor: bgColor,
+              foregroundColor: fgColor,
+              child: Icon(paused ? Icons.play_arrow : Icons.pause),
+            ),
+            if (auto)
+              Positioned(
+                right: -2,
+                top: -2,
+                child: Container(
+                  width: 18,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.tertiary,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: theme.colorScheme.surface,
+                      width: 2,
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'A',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onTertiary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 9,
+                        height: 1.0,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Chronological log of every distinct BTHome packet seen this session.
+/// Newest entries appear at the top. Tapping an entry opens a frozen
+/// snapshot view of that exact packet.
+class HistoryScreen extends StatefulWidget {
+  final BleScanner scanner;
+
+  const HistoryScreen({super.key, required this.scanner});
+
+  @override
+  State<HistoryScreen> createState() => _HistoryScreenState();
+}
+
+class _HistoryScreenState extends State<HistoryScreen> {
+  @override
+  void initState() {
+    super.initState();
+    widget.scanner.addListener(_onChange);
+  }
+
+  @override
+  void dispose() {
+    widget.scanner.removeListener(_onChange);
+    super.dispose();
+  }
+
+  void _onChange() {
+    if (mounted) setState(() {});
+  }
+
+  void _confirmClear() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Clear history?'),
+        content: const Text('Discard all recorded packets from this session.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              widget.scanner.clearHistory();
+              Navigator.pop(context);
+            },
+            child: const Text('Clear'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Newest first
+    final entries = widget.scanner.history.reversed.toList();
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Packet History (${entries.length})'),
+        actions: [
+          if (entries.isNotEmpty)
+            IconButton(
+              tooltip: 'Clear history',
+              icon: const Icon(Icons.delete_sweep_outlined),
+              onPressed: _confirmClear,
+            ),
+        ],
+      ),
+      body: entries.isEmpty
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.inbox_outlined,
+                      size: 72,
+                      color: theme.colorScheme.outline,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No packets recorded yet',
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'BTHome advertisements you receive will show up here in chronological order.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.outline,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : ListView.separated(
+              padding: const EdgeInsets.all(12),
+              itemCount: entries.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
+              itemBuilder: (context, index) => _HistoryRow(
+                entry: entries[index],
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => PacketSnapshotScreen(snapshot: entries[index]),
+                  ),
+                ),
+              ),
+            ),
+    );
+  }
+}
+
+class _HistoryRow extends StatelessWidget {
+  final BthomeDevice entry;
+  final VoidCallback onTap;
+
+  const _HistoryRow({required this.entry, required this.onTap});
+
+  String _formatTime(DateTime t) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    String three(int n) => n.toString().padLeft(3, '0');
+    return '${two(t.hour)}:${two(t.minute)}:${two(t.second)}.${three(t.millisecond)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final raw = entry.advertisementHex;
+    final pid = entry.measurements
+        .where((m) => m.type == BthomeSensorType.packetId)
+        .map((m) => m.value.toInt())
+        .firstOrNull;
+
+    return Card(
+      elevation: 0,
+      color: theme.colorScheme.surfaceContainerLow,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    _formatTime(entry.lastSeen),
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      fontFamily: 'monospace',
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      entry.name ?? entry.macAddress,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (pid != null) ...[
+                    const SizedBox(width: 6),
+                    _MetaBadge(
+                      label: 'pkt $pid',
+                      tooltip: 'packet_id of this advertisement',
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                raw,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontFamily: 'monospace',
+                  color: theme.colorScheme.onSurfaceVariant,
+                  height: 1.3,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${entry.measurements.length} measurement${entry.measurements.length == 1 ? '' : 's'} · ${entry.rssi} dBm${entry.isEncrypted ? ' · encrypted' : ''}',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.outline,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Frozen view of a single historical BTHome packet. No scanner subscription,
+/// no merging — the displayed measurements are exactly what was in this one
+/// advertisement, in the order they appeared on the wire.
+class PacketSnapshotScreen extends StatelessWidget {
+  final BthomeDevice snapshot;
+
+  const PacketSnapshotScreen({super.key, required this.snapshot});
+
+  String _formatCapturedAt(DateTime t) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    String three(int n) => n.toString().padLeft(3, '0');
+    return '${t.year}-${two(t.month)}-${two(t.day)} '
+        '${two(t.hour)}:${two(t.minute)}:${two(t.second)}.${three(t.millisecond)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(snapshot.name ?? 'Packet'),
+        // The frozen snapshot itself is the "freeze"; no FAB needed here.
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Card(
+            elevation: 0,
+            color: theme.colorScheme.surfaceContainerHighest,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      _EncryptionBadge(device: snapshot),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              snapshot.name ?? 'Unknown Device',
+                              style: theme.textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              snapshot.macAddress,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.outline,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 12),
+                  _RawDataRow(hex: snapshot.advertisementHex),
+                  const SizedBox(height: 8),
+                  _InfoRow(
+                    icon: Icons.access_time,
+                    label: 'Captured at',
+                    value: _formatCapturedAt(snapshot.lastSeen),
+                  ),
+                  const SizedBox(height: 8),
+                  _InfoRow(
+                    icon: Icons.signal_cellular_alt,
+                    label: 'Signal Strength',
+                    value: '${snapshot.rssi} dBm',
+                  ),
+                  if (snapshot.isEncrypted) ...[
+                    const SizedBox(height: 8),
+                    _InfoRow(
+                      icon: Icons.lock,
+                      label: 'Encryption',
+                      value: snapshot.decryptionFailed ? 'Invalid Key' : 'Enabled',
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          if (snapshot.measurements.isNotEmpty) ...[
+            Text(
+              'Measurements (in packet order)',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...snapshot.measurements.map((m) => _MeasurementTile(measurement: m)),
+          ],
+        ],
+      ),
+    );
+  }
+}
